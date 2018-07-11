@@ -1,3 +1,5 @@
+name = "metrobus"
+
 from .metrobus import MetroStop
 
 import string

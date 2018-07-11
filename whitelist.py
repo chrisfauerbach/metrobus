@@ -8,9 +8,9 @@ import random
 # To consume latest messages and auto-commit offsets
 WHITE_LIST = set()
 
-def cb(message):
+def callback(message):
     print("Received in CB: ", message)
-    real_message = message.value
+    real_message = message
     if real_message['email'] in WHITE_LIST:
         real_message['whitelist'] = True
         return real_message 
@@ -23,13 +23,13 @@ if __name__ == "__main__":
     counter = 0
     with open('./data/whitelist.dat', 'r') as input_file:
         for line in input_file:
+            line = line.strip()
             WHITE_LIST.add(line)
             counter+=1 
-            if counter % 10000 == 0:
-                print('added another 10k, up to ', counter)
+            if counter % 100000 == 0:
+                print('added another 100k, up to ', counter)
 
             
     topic_in = "WhiteList"
-    topic_out = "Log"
-    metrostop = metrobus.MetroStop(cb, in_topic=topic_in, out_topic=topic_out)
+    metrostop = metrobus.MetroStop(callback, in_topic=topic_in)
     metrostop.start()

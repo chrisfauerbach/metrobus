@@ -27,6 +27,9 @@ def get_producer():
 if __name__ == "__main__":
     producer = get_producer()
     for x in range(1000):
+        # header = {}
+        # header['route'] = ['Source','AddEmail', 'Whitelist','Log']
+        # header['body'] = msg
         msg ={}
         msg['x'] = x
         msg['message_type_code'] = 'ALTABC'

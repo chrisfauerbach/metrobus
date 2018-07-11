@@ -29,6 +29,16 @@ services:
      - redis
      - kafka
     image: "webtest:whiteList"
+  busdriver:
+    depends_on:
+     - "redis"
+     - "kafka"
+     - "web"
+    links:
+     - redis
+     - kafka
+    image: "webtest:busdriver"
+
 
   contactPoint:
     depends_on: 
