@@ -9,6 +9,9 @@ kafka-python = "*"
 Flask = "*"
 pylint = "*"
 faker = "*"
+setuptools = "*"
+wheel = "*"
+twine = "*"
 
 [dev-packages]
 

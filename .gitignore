@@ -1,4 +1,6 @@
 *.pyc
 *.dat
 *.swp
-
+dist/
+build/
+metrobus.egg-info/

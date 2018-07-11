@@ -2,3 +2,4 @@ flask
 redis
 kafka-python
 faker
+metrobus
