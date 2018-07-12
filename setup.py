@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="metrobus",
-    version="0.0.4",
+    version="0.0.5",
     author="Chris Fauerbach",
     author_email="chris@fauie.com",
     description="A package to allow flexible and quick programs on a message bus/kafka.",

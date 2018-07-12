@@ -20,8 +20,8 @@ services:
     links:
      - redis
      - kafka
-  env_file:
-    - metrobus.env
+    env_file: metrobus.env
+
 
   # Pusher
   ## Cool name, eh? Pusher?  
@@ -37,8 +37,7 @@ services:
      - redis
      - kafka
     image: "webtest:pusher"
-  env_file:
-    - metrobus.env
+    env_file: metrobus.env
 
   # Bus Driver
   ## This is the first major step of the process.
@@ -56,8 +55,7 @@ services:
      - redis
      - kafka
     image: "webtest:busdriver"
-  env_file:
-    - metrobus.env
+    env_file: metrobus.env
 
   #Contact Point - Add Email (Stage one)
   ## This application uses the fake account ID
@@ -74,8 +72,7 @@ services:
      - redis
      - kafka
     image: "webtest:contactPoint"
-  env_file:
-    - metrobus.env
+    env_file: metrobus.env
 
 
 
@@ -92,8 +89,7 @@ services:
      - redis
      - kafka
     image: "webtest:whiteList"
-  env_file:
-    - metrobus.env
+    env_file: metrobus.env
 
 
   # Log Stop (stage three)
@@ -110,8 +106,7 @@ services:
      - redis
      - kafka
     image: "webtest:logstop"
-  env_file:
-    - metrobus.env
+    env_file: metrobus.env
 
 
 
