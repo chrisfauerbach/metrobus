@@ -2,7 +2,7 @@ import time
 import json
 import traceback
 import sys
-
+import os
 import redis
 import kafka
 import kafka.errors
@@ -16,6 +16,14 @@ HISTORICAL_ROUTE_FIELD = 'historical_route'
 BODY_FIELD = 'body'
 
 COUNTER_KEY = "counter"
+
+KAFKA_HOST = os.environ.get('KAFKA_HOST', 'localhost')
+KAFKA_PORT = os.environ.get('KAFKA_PORT', 9092)
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = os.environ.get('REDIS_PORT', 6379)
+
+
+CACHE = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 class BadStateRecordError(Exception):
     """Raised when an operation attempts a state transition that's not
@@ -36,7 +44,6 @@ class BadStateRecordError(Exception):
     def __str__(self):
         return f"ErrorConditionRecord: {self.topic} {self.message} {self.value}"
 
-CACHE = redis.Redis(host='redis', port=6379, decode_responses=True)
 
 # To consume latest messages and auto-commit offsets
 #
@@ -55,6 +62,7 @@ class MetroStop(object):
         self.callback = callback
         self.consumer = None
         print("Looking for consumer in bg thread.")
+        print(f"Config:\nKafka: {KAFKA_HOST}:{KAFKA_PORT}\nRedis: {REDIS_HOST}:{REDIS_PORT}")
         self.consumer = self.get_consumer()
         print("Started background thread with consumer: ", self.consumer)
         self.producer = self.get_producer()
@@ -68,7 +76,7 @@ class MetroStop(object):
                 self.consumer = KafkaConsumer(self.topic_name,
                                               group_id='my-group',
                                               consumer_timeout_ms=30000,
-                                              bootstrap_servers=['kafka:9092'],
+                                              bootstrap_servers=[f"{KAFKA_HOST}:{KAFKA_PORT}"],
                                               value_deserializer=lambda v: json.loads(v))
             except kafka.errors.NoBrokersAvailable:
                 pass

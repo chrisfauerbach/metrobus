@@ -23,7 +23,7 @@ def callback(message):
 if __name__ == "__main__":
     print("Trying to start app.")
     counter = 0
-    with open('./data/cps.dat', 'r') as input_file:
+    with open('./data/emails.dat', 'r') as input_file:
         for line in input_file:
             line = line.strip()
             acct_id, email = line.split(",", 1)

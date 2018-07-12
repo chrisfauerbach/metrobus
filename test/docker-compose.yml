@@ -1,7 +1,16 @@
+# Chris Fauerbach, chris@fauie.com
+# Example docker compose file to run an example metrobus application
+# Example, Example, Example
+# (c) 2018
+
+
 version: '3'
 services:
+  # Web Status
+  ## Web application, in order to see some super basic stats
+  ## from redis.   http://localhost:5000/
+  ## Flask app in web.py
   web:
-    # build: .
     ports:
      - "5000:5000"
     image: "webtest:example1"
@@ -11,6 +20,14 @@ services:
     links:
      - redis
      - kafka
+  env_file:
+    - metrobus.env
+
+  # Pusher
+  ## Cool name, eh? Pusher?  
+  ## This is the example 'source' of data
+  ## Raw JSON messages going into Kafka... 
+  ## pusher.py
   pusher:
     depends_on: 
      - "redis"
@@ -20,15 +37,16 @@ services:
      - redis
      - kafka
     image: "webtest:pusher"
-  whitelist:
-    depends_on:
-     - "redis"
-     - "kafka"
-     - "web"
-    links:
-     - redis
-     - kafka
-    image: "webtest:whiteList"
+  env_file:
+    - metrobus.env
+
+  # Bus Driver
+  ## This is the first major step of the process.
+  ## Bus driver is my smart router dude.  In a real
+  ## application, bus driver could/would inspect
+  ## the state of the data coming in. THen, it would 
+  ## dynamically build a route
+  ## https://medium.com/capital-one-developers/stateless-and-dumb-microservices-on-a-message-bus-be78bca93ccb
   busdriver:
     depends_on:
      - "redis"
@@ -38,7 +56,14 @@ services:
      - redis
      - kafka
     image: "webtest:busdriver"
+  env_file:
+    - metrobus.env
 
+  #Contact Point - Add Email (Stage one)
+  ## This application uses the fake account ID
+  ## generated in the pusher.  Adds an email 
+  ## address based on the cps.dat file you
+  ## previously generated. Drops message if can't find
 
   contactPoint:
     depends_on: 
@@ -49,6 +74,33 @@ services:
      - redis
      - kafka
     image: "webtest:contactPoint"
+  env_file:
+    - metrobus.env
+
+
+
+  # Whitelist (stage two)
+  ## Example of a whitelist.  I blogged about black list. 
+  ## Same dealio?  If record (email in this case) isn't 
+  ## in the list, then we can drop the messsage (return)
+  whitelist:
+    depends_on:
+     - "redis"
+     - "kafka"
+     - "web"
+    links:
+     - redis
+     - kafka
+    image: "webtest:whiteList"
+  env_file:
+    - metrobus.env
+
+
+  # Log Stop (stage three)
+  ## This is an example 'sink' stop on the metrobus
+  ## All this bad boy does is logs the message.. 
+  ## in the real world, this could shove into elasticsearch 
+  ## or something less cool than ES.
   logStop:
     depends_on: 
      - "redis"
@@ -58,6 +110,9 @@ services:
      - redis
      - kafka
     image: "webtest:logstop"
+  env_file:
+    - metrobus.env
+
 
 
   redis:
