@@ -1,5 +1,5 @@
 # metrobus
-![Metrobus - Elastic] (https://raw.githubusercontent.com/chrisfauerbach/metrobus/master/elasticsearch_head.png)
+![Metrobus - Elastic](https://raw.githubusercontent.com/chrisfauerbach/metrobus/master/elasticsearch_head.png?raw=true)
 
 Proof of concept and example for smart routing on a dumb bus.
 
