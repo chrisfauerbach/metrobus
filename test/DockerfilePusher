@@ -4,5 +4,6 @@ WORKDIR /code
 RUN pip install -r requirements.txt
 RUN pwd
 RUN ls -latr
+
 CMD ["python","-u", "pusher.py"]
 

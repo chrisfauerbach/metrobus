@@ -1,11 +1,14 @@
 name = "metrobus"
 
-from .metrobus import MetroStop
-
+import socket
 import string
+import time
 import random
 from random import randint, choice
 from faker import Faker
+
+from .metrobus import MetroStop
+
 fake = Faker()
 
 DOMAINS = [
@@ -42,6 +45,19 @@ def email_generator():
   role = fake.name().replace(' ', '_')
   domain = choice(DOMAINS)
   return f'{role}@{domain}'
+
+def wait_open(ip,port, timeout=120, sleep_time=5):
+   start = time.time()
+   while time.time() < (start + 120):
+       s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+       try:
+          s.connect((ip, int(port)))
+          s.shutdown(2)
+          return True
+       except:
+          time.sleep(sleep_time)
+    
+
 
 if __name__ == '__main__':
   for _ in range(100):

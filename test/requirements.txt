@@ -3,3 +3,6 @@ redis
 kafka-python
 faker
 metrobus
+elasticsearch>=6.0.0,<7.0.0
+requests
+
