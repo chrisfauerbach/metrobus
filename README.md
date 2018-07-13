@@ -1,4 +1,7 @@
 # metrobus
+![Metrobus - Elastic]
+(elasticsearch_head.png)
+
 Proof of concept and example for smart routing on a dumb bus.
 
 This is a small project focused on my blog posts around routing on a message bus that's dumb.  Like Kafka. 
