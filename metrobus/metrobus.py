@@ -2,6 +2,8 @@ import time
 import json
 import traceback
 import sys
+import logging
+
 import os
 import redis
 import kafka
@@ -57,16 +59,39 @@ class MetroStop(object):
         self.consumer = None
         self.producer = None
         self.topic_name = in_topic # "Source"
-        print("Input topic: ", self.topic_name)
+        logging.info("Input topic: %s", self.topic_name)
         self.error_topic = 'Error'
         self.callback = callback
         self.consumer = None
-        print("Looking for consumer in bg thread.")
-        print(f"Config:\nKafka: {KAFKA_HOST}:{KAFKA_PORT}\nRedis: {REDIS_HOST}:{REDIS_PORT}")
+        logging.info("Looking for consumer in bg thread.")
+        logging.info(f"Config:\nKafka: {KAFKA_HOST}:{KAFKA_PORT}\nRedis: {REDIS_HOST}:{REDIS_PORT}")
         self.consumer = self.get_consumer()
-        print("Started background thread with consumer: ", self.consumer)
+        logging.info("Started background thread with consumer: %s", self.consumer)
         self.producer = self.get_producer()
-        print("Starting background thread with producer: ", self.producer)
+        logging.info("Starting background thread with producer: %s", self.producer)
+        self.last_message = None
+
+    def push_stop(stop):
+        routes = []
+        message_header = None
+
+        if self.last_message:
+            message_header = self.last_message.get(HEADER_FIELD)
+            if message_header:
+                routes = message_header.get(ROUTES_FIELD)
+        if routes:
+            routes.insert(0, stop)
+
+    def pop_stop():
+        routes = []
+        message_header = None
+
+        if self.last_message:
+            message_header = self.last_message.get(HEADER_FIELD)
+            if message_header:
+                routes = message_header.get(ROUTES_FIELD)
+        if routes:
+            return routes.pop()
 
     def get_consumer(self):
         if self.consumer:
@@ -80,10 +105,8 @@ class MetroStop(object):
                                               value_deserializer=lambda v: json.loads(v))
             except kafka.errors.NoBrokersAvailable:
                 pass
-            except:
-                print("Consumer: ", "-"*60)
-                traceback.print_exc(file=sys.stdout)
-                print("//Consumer: ", "-"*60)
+            except: 
+                logging.exception("Error in consumer") 
             time.sleep(3)
         if not self.consumer:
             raise Exception("Missing consumer.")
@@ -101,60 +124,59 @@ class MetroStop(object):
             except kafka.errors.NoBrokersAvailable:
                 pass
             except:
-                print("Producer: ", "-"*60)
-                traceback.print_exc(file=sys.stdout)
-                print("//Producer: ", "-"*60)
+                logging.exception("Error in producer") 
                 time.sleep(3)
         if not self.producer:
             raise Exception("Missing producer.")
         return self.producer
 
     def start(self):
-        print("Starting thread. listening to: ", self.topic_name)
-        consumer = self.get_consumer()
-
+        logging.info("Starting thread. listening to: ", self.topic_name)
+        consumer = self.get_consumer() 
         if consumer:
             while True:
                 for message in consumer:
-                    print("%s:%d:%d: key=%s value=%s" % (message.topic, message.partition, message.offset, message.key, message.value))
+                    self.last_message = message
+                    logging.debug("%s:%s:%s: key=%s value=%s",message.topic, message.partition, message.offset, message.key, message.value)
                     self.add_count(message.topic)
                     if self.callback:
+                        
                         message_body = message.value
                         message_header = message_body.get(HEADER_FIELD)
                         downstream_message = message_body.get(BODY_FIELD, message_body)
                         retval = self.callback(downstream_message)
                         next_stop = None
                         if retval: # and (local_out_topic):
+                            next_stop = pop_stop()
+                            
                             if not message_header:
                                 message_body = retval
                                 message_header = message_body.get(HEADER_FIELD)
-                            if message_header:
-                                routes = message_header.get(ROUTE_FIELD)
-                                if routes:
-                                    next_stop = routes.pop()
-                                    message_header.get(HISTORICAL_ROUTE_FIELD).insert(0, next_stop)
                             else:
-                                print("NO MESSAGE HEADER, I think this is where I add one.?????")
+                                logging.error("NO MESSAGE HEADER, I think this is where I add one.?????")
 
                             if next_stop:
-                                print(f"Downstream, now sending to {next_stop} {message_body}")
+                                message_header.get(HISTORICAL_ROUTE_FIELD).insert(0, next_stop)
+                                logging.info(f"Downstream, now sending to %s %s", next_stop, message_body)
                                 self.producer.send(next_stop, message_body)
                             else:
-                                print("NO NEXT STOP 1: ", message.value)
-                                print("NO NEXT STOP 2: ", message_body)
+                                logging.error("NO NEXT STOP 1: ", message.value)
+                                logging.error("NO NEXT STOP 2: ", message_body)
                                 sys.exit(1)
                         else: #No retval!
-                            print("Nothing returned, therefore, assume filtered.")
-                print("No message detected yet.")
+                            logging.info("Nothing returned, therefore, assume filtered.")
+                    self.last_message = None
+                logging.info("No message detected yet.")
         else:
-            print("SOMETHING IS BROKEN. NO CONSUMER")
+            logging.error("SOMETHING IS BROKEN. NO CONSUMER")
             sys.exit(1)
-        print("Uh Oh. I am exiting for some reason.")
+        logging.error("Uh Oh. I am exiting for some reason.")
+
     def add_count(self, topic):
         return CACHE.hincrby(COUNTER_KEY, topic, 1)
 
 
 if __name__ == "__main__":
-    print("Trying to start app.")
+    logging.info("Trying to start app.")
     METRO_STOP = MetroStop()
     METRO_STOP.start()
