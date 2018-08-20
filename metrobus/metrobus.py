@@ -15,7 +15,7 @@ HEADER_FIELD = 'header'
 ROUTE_FIELD = 'route'
 ORIGINAL_ROUTE_FIELD = 'original_route'
 HISTORICAL_ROUTE_FIELD = 'historical_route'
-BODY_FIELD = 'body'
+PAYLOAD_FIELD = 'payload'
 
 COUNTER_KEY = "counter"
 
@@ -65,33 +65,37 @@ class MetroStop(object):
         self.consumer = None
         logging.info("Looking for consumer in bg thread.")
         logging.info(f"Config:\nKafka: {KAFKA_HOST}:{KAFKA_PORT}\nRedis: {REDIS_HOST}:{REDIS_PORT}")
-        self.consumer = self.get_consumer()
-        logging.info("Started background thread with consumer: %s", self.consumer)
-        self.producer = self.get_producer()
-        logging.info("Starting background thread with producer: %s", self.producer)
-        self.last_message = None
+        #self.consumer = self.get_consumer()
+        #logging.info("Started background thread with consumer: %s", self.consumer)
+        #self.producer = self.get_producer()
+        #logging.info("Starting background thread with producer: %s", self.producer)
+        self.setLastMessage(None)
 
-    def push_stop(stop):
+    def setLastMessage(self, message):
+        self.last_message = message
+
+    def push_stop(self, stop):
         routes = []
         message_header = None
 
         if self.last_message:
             message_header = self.last_message.get(HEADER_FIELD)
             if message_header:
-                routes = message_header.get(ROUTES_FIELD)
+                routes = message_header.get(ROUTE_FIELD)
         if routes:
             routes.insert(0, stop)
 
-    def pop_stop():
+    def pop_stop(self):
         routes = []
         message_header = None
 
         if self.last_message:
             message_header = self.last_message.get(HEADER_FIELD)
             if message_header:
-                routes = message_header.get(ROUTES_FIELD)
+                routes = message_header.get(ROUTE_FIELD)
         if routes:
             return routes.pop()
+        return 
 
     def get_consumer(self):
         if self.consumer:
@@ -131,41 +135,52 @@ class MetroStop(object):
         return self.producer
 
     def start(self):
+        try:
+            self._start()
+        except:
+            logging.exception("There was an uncaught exception during processing.")
+
+    def _start(self):
         logging.info("Starting thread. listening to: ", self.topic_name)
         consumer = self.get_consumer() 
+        producer = self.get_producer()
         if consumer:
             while True:
-                for message in consumer:
-                    self.last_message = message
-                    logging.debug("%s:%s:%s: key=%s value=%s",message.topic, message.partition, message.offset, message.key, message.value)
-                    self.add_count(message.topic)
-                    if self.callback:
-                        
-                        message_body = message.value
-                        message_header = message_body.get(HEADER_FIELD)
-                        downstream_message = message_body.get(BODY_FIELD, message_body)
-                        retval = self.callback(downstream_message)
-                        next_stop = None
-                        if retval: # and (local_out_topic):
-                            next_stop = pop_stop()
-                            
-                            if not message_header:
-                                message_body = retval
-                                message_header = message_body.get(HEADER_FIELD)
+                for kafka_message in consumer:
+                    logging.debug("%s:%s:%s: key=%s value=%s",kafka_message.topic, kafka_message.partition, kafka_message.offset, kafka_message.key, kafka_message.value)
+                    self.add_count(kafka_message.topic)
+                    message = kafka_message.value 
+                    message_payload = message.get(PAYLOAD_FIELD, message)
+                    
+                    if self.callback:   
+                        # retval means the callback returned something
+                        returned_body = self.callback(message_payload)  
+                        if returned_body: # and (local_out_topic):
+                            #This may happen if its a new message (since above has no head/body)
+                            #but the retval may have is, inserted by busdriver.   
+                            # @TODO  change how this works.
+                            if HEADER_FIELD in returned_body:
+                                message = retval
+                                message_header = message.get(HEADER_FIELD)
                             else:
-                                logging.error("NO MESSAGE HEADER, I think this is where I add one.?????")
+                                #logging.error("NO MESSAGE HEADER, I think this is where I add one.?????")
+                                message[PAYLOAD_FIELD] = retval
 
+                            self.setLastMessage( message  )
+                            next_stop = self.pop_stop()
                             if next_stop:
-                                message_header.get(HISTORICAL_ROUTE_FIELD).insert(0, next_stop)
-                                logging.info(f"Downstream, now sending to %s %s", next_stop, message_body)
-                                self.producer.send(next_stop, message_body)
+                                message_header.get(HISTORICAL_ROUTE_FIELD).append(next_stop)
+                                logging.info(f"Downstream, now sending to %s %s", next_stop, message)
+                                producer.send(next_stop, message)
                             else:
-                                logging.error("NO NEXT STOP 1: ", message.value)
-                                logging.error("NO NEXT STOP 2: ", message_body)
+                                logging.error("NO NEXT STOP 1: %s", message.value)
+                                logging.error("NO NEXT STOP 2: %s", message)
+                                logging.error("NO NEXT STOP 2.5:%s", message_payload)
+                                logging.error("NO NEXT STOP 3: %s", message)
                                 sys.exit(1)
                         else: #No retval!
                             logging.info("Nothing returned, therefore, assume filtered.")
-                    self.last_message = None
+                    self.setLastMessage( None  )
                 logging.info("No message detected yet.")
         else:
             logging.error("SOMETHING IS BROKEN. NO CONSUMER")
@@ -178,5 +193,20 @@ class MetroStop(object):
 
 if __name__ == "__main__":
     logging.info("Trying to start app.")
-    METRO_STOP = MetroStop()
-    METRO_STOP.start()
+    metro = MetroStop()
+    metro.setLastMessage({
+        HEADER_FIELD: {
+            ROUTE_FIELD:[1,2,3,4]
+        },
+        PAYLOAD_FIELD: {"one":"two", "three":3 }
+    })
+    print(metro.pop_stop())
+    print(metro.pop_stop())
+    print(metro.pop_stop())
+    
+
+
+
+
+
+
